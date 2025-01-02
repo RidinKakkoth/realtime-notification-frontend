@@ -10,6 +10,7 @@ const AddProduct = ({ isOpen, onClose,product }) => {
     price: "",
     image: null, // Store the selected file
   });
+  const[loading,setLoading]=useState(false)
 
   useEffect(()=>{
     if(product){
@@ -62,6 +63,7 @@ const AddProduct = ({ isOpen, onClose,product }) => {
 
   const handleSubmit =async (e) => {
     e.preventDefault();
+    setLoading(true)
 
     try {
         const payload=new FormData()
@@ -78,12 +80,14 @@ const AddProduct = ({ isOpen, onClose,product }) => {
                 if (result.success) {
                     dispatch(updateExistingProduct(result.updatedProduct));
                     alert("Product Updated");
+                    setLoading(false)
                   }
-            }
-            else{
-                result=await addProduct(payload)
-                if (result.success) {
+                }
+                else{
+                  result=await addProduct(payload)
+                  if (result.success) {
                     dispatch(addNewProduct(result.newProduct));
+                    setLoading(false)
                     alert("Product Added");
                   }
             }
@@ -184,6 +188,7 @@ const AddProduct = ({ isOpen, onClose,product }) => {
             </button>
             <button
               type="submit"
+              disabled={loading}
               className="bg-blue-500 text-white px-4 py-2 rounded"
             >
               {product?"Update Product":"Add Product"}

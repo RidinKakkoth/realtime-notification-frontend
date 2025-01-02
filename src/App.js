@@ -1,7 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { io } from "socket.io-client";
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import Navbar from './components/Navbar';
 import AdminHome from './pages/AdminHome';
 import UserHome from './pages/UserHome';
@@ -9,41 +9,60 @@ import Auth from './pages/Auth';
 // import NotFound from './pages/NotFound';
 // import Products from './pages/Products';
 
+import { connectSocket, disconnectSocket } from "./socketService"; // Import WebSocket service
+import { fetchProduct } from './api/adminEndpoints';
+import { setAllProducts } from './slices/productSlice';
+
 const App = () => {
-  const { user } = useSelector((state) => state.user); 
-  console.log(user?._id,"0000000000");
-  
-  
+  const { user } = useSelector((state) => state.user);
+  const [notifications, setNotifications] = useState([]);
+  const dispatch=useDispatch()
+
+  const getProducts = async () => {
+    try {
+      const response = await fetchProduct();
+      
+      if (response.success) {
+        // setProducts(response.products);
+        dispatch(setAllProducts(response.products));
+      }
+    } catch (error) {
+      console.error("Error fetching products:", error);
+    }
+  };
+
   useEffect(() => {
     if (user?._id) {
-      
-      const socket = io("http://localhost:5000"); // Replace with your backend's port
-  
-      socket.on("connect", () => {
-        console.log("Connected to WebSocket server");
-  
-        // Join the user's room based on their userId
-        const userId = user._id;
-        console.log(userId, "Joining room");
-        socket.emit("join", userId);
+      connectSocket(user._id, (data) => {
+        setNotifications((prev) => [
+          ...prev,
+          {
+            message: `Product ${data?.changes?.name} updated`,
+            time: new Date().toLocaleTimeString(),
+          },
+        ]);
+        getProducts()
+
       });
-  
-      socket.on("productUpdated", (data) => {
-        console.log("Product updated:", data);
-        alert(`Product ${data.productId} updated: ${JSON.stringify(data.changes)}`);
-      });
-  
-      return () => {
-        socket.disconnect(); // Clean up the socket connection
-      };
     }
+
+    return () => {
+      disconnectSocket(); // Clean up WebSocket connection
+    };
   }, [user]);
+  const handleClearNotifications = () => {
+    setNotifications([]);
+  };
+
   
 
   return (
     <Router>
       <div className="min-h-screen  bg-gray-100">
-        {user&&<Navbar />}
+        {user&&  <Navbar
+            notifications={notifications}
+            onClearNotifications={handleClearNotifications}
+          />}
         <div className="container mx-auto  ">
           <Routes>
             <Route
